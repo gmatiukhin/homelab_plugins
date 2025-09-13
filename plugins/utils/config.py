@@ -1,16 +1,16 @@
-import dataclasses
+from dataclasses import dataclass, field
 import os
 
 
-@dataclasses.dataclass(init=False)
+@dataclass(init=False)
 class Config:
     """foobar"""
 
-    project_paths: list = []
+    project_paths: list[str] = field(default_factory=list)
     search_child_modules: bool = True
     use_node_groups: bool = True
-    group_overrides: dict = {}
-    host_overrides: dict = {}
+    group_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
+    host_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def __init__(self, cfg) -> None:
         project_paths = cfg.get("project_path", os.getcwd())

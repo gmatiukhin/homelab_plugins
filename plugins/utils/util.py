@@ -1,9 +1,13 @@
 import shutil
 
 
-def flatten_resources(values):
-    return values["resources"] + sum(
-        [flatten_resources(child) for child in values["child_modules"]]
+def flatten_resources(root_module):
+    return root_module["resources"] + sum(
+        [
+            flatten_resources(child)
+            for child in root_module.get("child_modules", list())
+        ],
+        start=[],
     )
 
 

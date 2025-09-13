@@ -11,6 +11,7 @@ import ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.util as util
 
 DOCUMENTATION = r"""
 name: pve_terraform_provider
+plugin_type: inventory
 author:
   - Grigorii Matiukhin (@gmatiukhin)
 short_description: Builds an inventory from Terraform state file using bpg/proxmox provider.
@@ -22,10 +23,10 @@ options:
   plugin:
     description:
       - The name of the Inventory Plugin.
-      - This should always be C(cloud.terraform.terraform_provider).
+      - This should always be C(gmatiukhin.homelab_plugins.pve_terraform_provider).
     required: true
     type: str
-    choices: [ cloud.terraform.terraform_provider ]
+    choices: [ gmatiukhin.homelab_plugins.pve_terraform_provider ]
   project_path:
     description:
       - The path to the initialized Terraform directory with the .tfstate file.
@@ -97,7 +98,7 @@ class InventoryModule(BaseInventoryPlugin):
             resources = (
                 state["root_module"]["resources"]
                 if not cfg.search_child_modules
-                else util.flatten_resources(state["resources"])
+                else util.flatten_resources(state["root_module"])
             )
 
             for resource in resources:
@@ -140,7 +141,7 @@ class InventoryModule(BaseInventoryPlugin):
         )
         mac = ni["mac_address"]
         # grab the first appearance of the mac address in the full list
-        idx = values["mac_addresses"].intex(mac)
+        idx = values["mac_addresses"].index(mac)
         # to then grab the corresponding iface
         ipv4 = values["ipv4_addresses"][idx]
 
