@@ -143,7 +143,8 @@ class InventoryModule(BaseInventoryPlugin):
         # grab the first appearance of the mac address in the full list
         idx = values["mac_addresses"].index(mac)
         # to then grab the corresponding iface
-        ipv4 = values["ipv4_addresses"][idx]
+        # additionally, ifaces are all a list of one element
+        ipv4 = values["ipv4_addresses"][idx][0]
 
         host = vm["name"]
         groups = values["tags"]
