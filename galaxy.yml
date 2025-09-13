@@ -1,6 +1,6 @@
 namespace: gmatiukhin
 name: homelab
-version: 0.1
+version: 0.1.0
 readme: README.md
 authors:
   - Grigorii Matiukhin <contact@gmatiukhin.site>
