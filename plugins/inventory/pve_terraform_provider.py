@@ -58,7 +58,7 @@ VM_TYPE = "proxmox_virtual_environment_vm"
 
 
 class InventoryModule(BaseInventoryPlugin):
-    NAME = "bpg_proxmox_inventory_plugin"
+    NAME = "gmatiukhin.homelab_plugins.pve_terraform_provider"
 
     def parse(self, inventory, loader, path, cache=False):
         super(InventoryModule, self).parse(inventory, loader, path)
