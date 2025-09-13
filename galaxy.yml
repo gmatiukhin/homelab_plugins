@@ -1,0 +1,18 @@
+namespace: gmatiukhin
+name: homelab
+version: 0.1
+readme: README.md
+authors:
+  - Grigorii Matiukhin <contact@gmatiukhin.site>
+description: >
+  A collection of custom Ansible plugins for my homelab.
+license: MIT
+tags:
+  - terraform
+  - cloud
+  - infrastructure
+dependencies: {}
+repository: https://github.com/gmatiukhin/homelab_plugins
+documentation: https://github.com/gmatiukhin/homelab_plugins
+homepage: https://github.com/gmatiukhin/homelab_plugins
+issues: https://github.com/gmatiukhin/homelab_plugins/issues
