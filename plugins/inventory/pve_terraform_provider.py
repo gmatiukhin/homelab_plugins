@@ -51,6 +51,14 @@ options:
     description:
       - Variable overrides for specific hosts.
     type: raw
+  exclude_hosts:
+    description:
+      - Don't add specific hosts to the inventory.
+    type: raw
+  exclude_groups:
+    description:
+      - Don't add specific groups to the inventory.
+    type: raw
 """
 
 
@@ -157,15 +165,22 @@ class InventoryModule(BaseInventoryPlugin):
         self._add_host(inventory, host, groups, ipv4, cfg)
 
     def _add_group(self, inventory, group, cfg: Config):
+        if group in cfg.exclude_groups:
+            return
+
         inventory.add_group(group)
 
         for var, val in cfg.group_overrides.get(group, dict()).items():
             inventory.set_variable(group, var, val)
 
     def _add_host(self, inventory, host, groups, ipv4, cfg: Config):
+        if host in cfg.exclude_hosts:
+            return
+
         inventory.add_host(host)
         for group in groups:
-            inventory.add_child(group, host)
+            if group not in cfg.exclude_groups:
+                inventory.add_child(group, host)
         inventory.set_variable(host, "ansible_host", ipv4)
 
         for var, val in cfg.host_overrides.get(host, dict()).items():

@@ -11,6 +11,8 @@ class Config:
     use_node_groups: bool = True
     group_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
     host_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
+    exclude_hosts: list[str] = field(default_factory=list)
+    exclude_groups: list[str] = field(default_factory=list)
 
     def __init__(self, cfg) -> None:
         project_paths = cfg.get("project_path", os.getcwd())
@@ -23,3 +25,5 @@ class Config:
         self.use_node_groups = cfg.get("use_per_node_groups", True)
         self.group_overrides = cfg.get("group_overrides", dict())
         self.host_overrides = cfg.get("host_overrides", dict())
+        self.exclude_hosts = cfg.get("exclude_hosts", list())
+        self.exclude_groups = cfg.get("exclude_groups", list())
