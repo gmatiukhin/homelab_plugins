@@ -6,8 +6,8 @@ from ansible.errors import AnsibleError
 from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.module_utils.common import process
 
-from plugins.utils.config import Config
-import plugins.utils.util as util
+from ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.config import Config
+import ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.util as util
 
 DOCUMENTATION = r"""
 name: pve_terraform_provider
