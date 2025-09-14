@@ -59,6 +59,11 @@ options:
     description:
       - Don't add specific groups to the inventory.
     type: raw
+  extra_group:
+    description:
+      - Add all hosts to a specific group.
+      - Can be excluded by I(exlclude_groups).
+      - Accepts a string or a list of groups.
 """
 
 
@@ -100,6 +105,9 @@ class InventoryModule(BaseInventoryPlugin):
             self.create_inventory(inventory, state_content, cfg)
 
     def create_inventory(self, inventory, state_content, cfg: Config):
+        for extra_group in cfg.extra_groups:
+            self._add_group(inventory, extra_group, cfg)
+
         for state in state_content:
             if state is None:
                 continue
@@ -128,15 +136,10 @@ class InventoryModule(BaseInventoryPlugin):
         ipv4 = values["ipv4"][iface]
 
         host = container["name"]
-        groups: list = values["tags"]
+        groups = values["tags"]
+        node_name = values["node_name"]
 
-        if cfg.use_node_groups:
-            groups.append(values["node_name"])
-
-        for group in groups:
-            self._add_group(inventory, group, cfg)
-
-        self._add_host(inventory, host, groups, ipv4, cfg)
+        self._add(inventory, host, ipv4, groups, node_name, cfg)
 
     def _handle_vm(self, inventory, vm, cfg: Config):
         values = vm["values"]
@@ -156,13 +159,17 @@ class InventoryModule(BaseInventoryPlugin):
 
         host = vm["name"]
         groups = values["tags"]
+        node_name = values["node_name"]
 
+        self._add(inventory, host, ipv4, groups, node_name, cfg)
+
+    def _add(self, inventory, host, ipv4, groups, node_name, cfg: Config):
         if cfg.use_node_groups:
-            groups.append(values["node_name"])
+            self._add_group(inventory, node_name, cfg)
 
         for group in groups:
             self._add_group(inventory, group, cfg)
-        self._add_host(inventory, host, groups, ipv4, cfg)
+        self._add_host(inventory, host, groups + cfg.extra_groups, ipv4, cfg)
 
     def _add_group(self, inventory, group, cfg: Config):
         if group in cfg.exclude_groups:

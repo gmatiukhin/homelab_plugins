@@ -13,6 +13,7 @@ class Config:
     host_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
     exclude_hosts: list[str] = field(default_factory=list)
     exclude_groups: list[str] = field(default_factory=list)
+    extra_groups: list[str] = field(default_factory=list)
 
     def __init__(self, cfg) -> None:
         project_paths = cfg.get("project_path", os.getcwd())
@@ -27,3 +28,9 @@ class Config:
         self.host_overrides = cfg.get("host_overrides", dict())
         self.exclude_hosts = cfg.get("exclude_hosts", list())
         self.exclude_groups = cfg.get("exclude_groups", list())
+
+        extra_groups = cfg.get("extra_group", list())
+
+        self.extra_groups = (
+            extra_groups if isinstance(extra_groups, list) else [extra_groups]
+        )
