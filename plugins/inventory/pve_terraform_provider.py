@@ -33,6 +33,12 @@ options:
       - If I(project_path) are not specified, Terraform will attempt to automatically find the state file in the current working directory.
       - Accepts a string or a list of paths for use with multiple Terraform projects.
     type: raw
+  bridge_iface:
+    description:
+      - Bridge interface on the PVE host to which guests are connected.
+      - Used to select the appropriate IP address.
+    type: str
+    required: true
   search_child_modules:
     description:
       - Whether to include hosts from Terraform child modules.
@@ -128,7 +134,7 @@ class InventoryModule(BaseInventoryPlugin):
         # using the devices on the LAN side of the virtual router
         ni = next(
             filter(
-                lambda x: x["bridge"] == "vmbr1",
+                lambda x: x["bridge"] == cfg.bridge_iface,
                 values["network_interface"],
             )
         )
@@ -146,7 +152,7 @@ class InventoryModule(BaseInventoryPlugin):
         # using the devices on the LAN side of the virtual router
         ni = next(
             filter(
-                lambda x: x["bridge"] == "vmbr1",
+                lambda x: x["bridge"] == cfg.bridge_iface,
                 values["network_device"],
             )
         )

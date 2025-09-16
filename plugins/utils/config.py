@@ -4,9 +4,8 @@ import os
 
 @dataclass(init=False)
 class Config:
-    """foobar"""
-
     project_paths: list[str] = field(default_factory=list)
+    bridge_iface: str = ""
     search_child_modules: bool = True
     use_node_groups: bool = True
     group_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -22,6 +21,7 @@ class Config:
             project_paths if isinstance(project_paths, list) else [project_paths]
         )
 
+        self.bridge_iface = cfg.get("bridge_iface")
         self.search_child_modules = cfg.get("search_child_modules", True)
         self.use_node_groups = cfg.get("use_per_node_groups", True)
         self.group_overrides = cfg.get("group_overrides", dict())
