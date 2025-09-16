@@ -7,6 +7,7 @@ from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.module_utils.common import process
 
 from ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.config import Config
+from ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.types import HostType
 import ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.util as util
 
 DOCUMENTATION = r"""
@@ -73,12 +74,13 @@ options:
 """
 
 
-CONTAINER_TYPE = "proxmox_virtual_environment_container"
-VM_TYPE = "proxmox_virtual_environment_vm"
-
-
 class InventoryModule(BaseInventoryPlugin):
     NAME = "gmatiukhin.homelab_plugins.pve_terraform_provider"
+
+    def __init__(self):
+        super(InventoryModule, self).__init__()
+
+        self.known_hosts = set()
 
     def parse(self, inventory, loader, path, cache=False):
         super(InventoryModule, self).parse(inventory, loader, path)
@@ -121,9 +123,9 @@ class InventoryModule(BaseInventoryPlugin):
             )
 
             for resource in resources:
-                if resource["type"] == CONTAINER_TYPE:
+                if resource["type"] == HostType.CT:
                     self._handle_container(inventory, resource, cfg)
-                elif resource["type"] == VM_TYPE:
+                elif resource["type"] == HostType.VM:
                     self._handle_vm(inventory, resource, cfg)
 
     def _handle_container(self, inventory, ct, cfg: Config):
@@ -167,20 +169,29 @@ class InventoryModule(BaseInventoryPlugin):
         self._add(inventory, host, ipv4, groups, node_name, cfg, vm["type"])
 
     def _add(
-        self, inventory, host, ipv4, groups, node_name, cfg: Config, resource_type: str
+        self,
+        inventory,
+        host,
+        ipv4,
+        groups,
+        node_name,
+        cfg: Config,
+        host_type: str | HostType,
     ):
         groups = groups + cfg.extra_groups
-        if resource_type == CONTAINER_TYPE:
-            groups.append("containers")
-        elif resource_type == VM_TYPE:
-            groups.append("virtual_machines")
+
+        match host_type:
+            case HostType.VM:
+                groups.append("virtual_machines")
+            case HostType.CT:
+                groups.append("containers")
 
         if cfg.use_node_groups:
             self._add_group(inventory, node_name, cfg)
 
         for group in groups:
             self._add_group(inventory, group, cfg)
-        self._add_host(inventory, host, groups, ipv4, cfg)
+        self._add_host(inventory, host, groups, ipv4, cfg, host_type)
 
     def _add_group(self, inventory, group, cfg: Config):
         if group in cfg.exclude_groups:
@@ -191,18 +202,27 @@ class InventoryModule(BaseInventoryPlugin):
         for var, val in cfg.group_overrides.get(group, dict()).items():
             inventory.set_variable(group, var, val)
 
-    def _add_host(self, inventory, host, groups, ipv4, cfg: Config):
+    def _add_host(
+        self, inventory, host, groups, ipv4, cfg: Config, host_type: str | HostType
+    ):
         if host in cfg.exclude_hosts:
             return
 
         if any([group in cfg.exclude_groups for group in groups]):
             return
 
+        if host in self.known_hosts:
+            raise AnsibleError("Found duplicate host: %s" % to_native(host))
+
+        self.known_hosts.add(host)
+
         inventory.add_host(host)
         for group in groups:
             if group not in cfg.exclude_groups:
                 inventory.add_child(group, host)
         inventory.set_variable(host, "ansible_host", ipv4)
+        inventory.set_variable(host, "virtual_machine", host_type == HostType.VM)
+        inventory.set_variable(host, "container", host_type == HostType.CT)
 
         for var, val in cfg.host_overrides.get(host, dict()).items():
             inventory.set_variable(host, var, val)
