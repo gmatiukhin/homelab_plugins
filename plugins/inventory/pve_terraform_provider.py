@@ -111,9 +111,6 @@ class InventoryModule(BaseInventoryPlugin):
             self.create_inventory(inventory, state_content, cfg)
 
     def create_inventory(self, inventory, state_content, cfg: Config):
-        for extra_group in cfg.extra_groups:
-            self._add_group(inventory, extra_group, cfg)
-
         for state in state_content:
             if state is None:
                 continue
@@ -129,8 +126,8 @@ class InventoryModule(BaseInventoryPlugin):
                 elif resource["type"] == VM_TYPE:
                     self._handle_vm(inventory, resource, cfg)
 
-    def _handle_container(self, inventory, container, cfg: Config):
-        values = container["values"]
+    def _handle_container(self, inventory, ct, cfg: Config):
+        values = ct["values"]
         # using the devices on the LAN side of the virtual router
         ni = next(
             filter(
@@ -141,11 +138,11 @@ class InventoryModule(BaseInventoryPlugin):
         iface = ni["name"]
         ipv4 = values["ipv4"][iface]
 
-        host = container["name"]
+        host = ct["name"]
         groups = values["tags"]
         node_name = values["node_name"]
 
-        self._add(inventory, host, ipv4, groups, node_name, cfg)
+        self._add(inventory, host, ipv4, groups, node_name, cfg, ct["type"])
 
     def _handle_vm(self, inventory, vm, cfg: Config):
         values = vm["values"]
@@ -167,15 +164,23 @@ class InventoryModule(BaseInventoryPlugin):
         groups = values["tags"]
         node_name = values["node_name"]
 
-        self._add(inventory, host, ipv4, groups, node_name, cfg)
+        self._add(inventory, host, ipv4, groups, node_name, cfg, vm["type"])
 
-    def _add(self, inventory, host, ipv4, groups, node_name, cfg: Config):
+    def _add(
+        self, inventory, host, ipv4, groups, node_name, cfg: Config, resource_type: str
+    ):
+        groups = groups + cfg.extra_groups
+        if resource_type == CONTAINER_TYPE:
+            groups.append("containers")
+        elif resource_type == VM_TYPE:
+            groups.append("virtual_machines")
+
         if cfg.use_node_groups:
             self._add_group(inventory, node_name, cfg)
 
         for group in groups:
             self._add_group(inventory, group, cfg)
-        self._add_host(inventory, host, groups + cfg.extra_groups, ipv4, cfg)
+        self._add_host(inventory, host, groups, ipv4, cfg)
 
     def _add_group(self, inventory, group, cfg: Config):
         if group in cfg.exclude_groups:
