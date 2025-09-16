@@ -63,7 +63,7 @@ options:
     type: raw
   exclude_groups:
     description:
-      - Don't add specific groups to the inventory.
+      - Don't add hosts in specific groups to the inventory.
     type: raw
   extra_group:
     description:
@@ -188,6 +188,9 @@ class InventoryModule(BaseInventoryPlugin):
 
     def _add_host(self, inventory, host, groups, ipv4, cfg: Config):
         if host in cfg.exclude_hosts:
+            return
+
+        if any([group in cfg.exclude_groups for group in groups]):
             return
 
         inventory.add_host(host)
