@@ -48,6 +48,7 @@ options:
   use_node_groups:
     description:
       - Whether to use PVE nodes as groups.
+      - Will create a group for each PVE host in a format "on_<node-name>".
     type: bool
     default: true
   group_overrides:
@@ -187,7 +188,9 @@ class InventoryModule(BaseInventoryPlugin):
                 groups.append("containers")
 
         if cfg.use_node_groups:
-            self._add_group(inventory, node_name, cfg)
+            group_name = f"on_{node_name}"
+            self._add_group(inventory, group_name, cfg)
+            groups += [group_name]
 
         for group in groups:
             self._add_group(inventory, group, cfg)
