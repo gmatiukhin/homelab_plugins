@@ -1,6 +1,6 @@
 namespace: gmatiukhin
 name: homelab_plugins
-version: 1.3.1
+version: 1.4.0
 readme: README.md
 authors:
   - Grigorii Matiukhin <contact@gmatiukhin.site>

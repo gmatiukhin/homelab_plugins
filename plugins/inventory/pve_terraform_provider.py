@@ -1,4 +1,3 @@
-import subprocess
 import json
 
 from ansible.config.manager import to_native
@@ -8,6 +7,9 @@ from ansible.module_utils.common import process
 
 from ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.config import Config
 from ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.types import HostType
+from ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.cmd import (
+    TerraformCommand,
+)
 import ansible_collections.gmatiukhin.homelab_plugins.plugins.utils.util as util
 
 DOCUMENTATION = r"""
@@ -93,22 +95,9 @@ class InventoryModule(BaseInventoryPlugin):
         state_content = []
 
         for path in cfg.project_paths:
-            try:
-                state_json = json.loads(
-                    subprocess.run(
-                        [terraform_binary, "show", "--json"],
-                        cwd=path,
-                        check=True,
-                        capture_output=True,
-                    ).stdout.decode("utf-8")
-                )
-                values = util.extract_values_from_state(state_json)
-
-                state_content.append(values)
-            except ChildProcessError as e:
-                raise AnsibleError(
-                    "Error executing `terraform show`: %s" % to_native(e)
-                )
+            state_json = json.loads(TerraformCommand(terraform_binary, path).show())
+            values = util.extract_values_from_state(state_json)
+            state_content.append(values)
 
         if state_content:
             self.create_inventory(inventory, state_content, cfg)
@@ -141,7 +130,9 @@ class InventoryModule(BaseInventoryPlugin):
         iface = ni["name"]
         ipv4 = values["ipv4"][iface]
 
-        host = ct["name"]
+        # there will always be one element in "initialization"
+        # even if it was not specified Proxmox will use a generated hostname
+        host = values["initialization"][0]["hostname"]
         groups = values["tags"]
         node_name = values["node_name"]
 
