@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from ansible.errors import AnsibleParserError
 import os
 
 
@@ -13,6 +14,8 @@ class Config:
     exclude_hosts: list[str] = field(default_factory=list)
     exclude_groups: list[str] = field(default_factory=list)
     extra_groups: list[str] = field(default_factory=list)
+    dns_only: bool = False
+    domain: str = ""
 
     def __init__(self, cfg) -> None:
         project_paths = cfg.get("project_path", os.getcwd())
@@ -34,3 +37,10 @@ class Config:
         self.extra_groups = (
             extra_groups if isinstance(extra_groups, list) else [extra_groups]
         )
+        self.dns_only = cfg.get("dns_only", False)
+        self.domain = cfg.get("domain", "")
+
+        if self.dns_only and not self.domain:
+            raise AnsibleParserError(
+                "Option 'domain' is required when 'dns_only' is true"
+            )

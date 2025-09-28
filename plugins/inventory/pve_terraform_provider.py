@@ -50,7 +50,7 @@ options:
   use_node_groups:
     description:
       - Whether to use PVE nodes as groups.
-      - Will create a group for each PVE host in a format "on_<node-name>".
+      - Will create a group for each PVE host in a format C(on_<node-name>).
     type: bool
     default: true
   group_overrides:
@@ -70,10 +70,24 @@ options:
       - Don't add hosts in specific groups to the inventory.
     type: raw
   extra_group:
+    type: raw
     description:
-      - Add all hosts to a specific group.
+      - Add all hosts to a specific I(group).
       - Can be excluded by I(exlclude_groups).
       - Accepts a string or a list of groups.
+  dns_only:
+    type: bool
+    description:
+      - Connect to hosts only with DNS and not through specific IPs.
+      - Works only for LXC containers.
+    default: false
+  domain:
+    type: string
+    description:
+      - Domain for hosts.
+      - Should be without the leading dot.
+      - Required when I(dns_only) is C(true).
+    default: ""
 """
 
 
@@ -113,60 +127,58 @@ class InventoryModule(BaseInventoryPlugin):
             )
 
             for resource in resources:
-                if resource["type"] == HostType.CT:
-                    self._handle_container(inventory, resource, cfg)
-                elif resource["type"] == HostType.VM:
-                    self._handle_vm(inventory, resource, cfg)
+                if resource["type"] in [HostType.CT, HostType.VM]:
+                    self._handle_resource(inventory, resource, cfg)
 
-    def _handle_container(self, inventory, ct, cfg: Config):
-        values = ct["values"]
-        # using the devices on the LAN side of the virtual router
-        ni = next(
-            filter(
-                lambda x: x["bridge"] == cfg.bridge_iface,
-                values["network_interface"],
-            )
-        )
-        iface = ni["name"]
-        ipv4 = values["ipv4"][iface]
+    def _handle_resource(self, inventory, resource, cfg: Config):
+        values = resource["values"]
+        vars = dict()
 
-        # there will always be one element in "initialization"
-        # even if it was not specified Proxmox will use a generated hostname
-        host = values["initialization"][0]["hostname"]
+        match resource["type"]:
+            case HostType.VM:
+                # using the devices on the LAN side of the virtual router
+                ni = next(
+                    filter(
+                        lambda x: x["bridge"] == cfg.bridge_iface,
+                        values["network_device"],
+                    )
+                )
+                mac = ni["mac_address"]
+                # grab the first appearance of the mac address in the full list
+                idx = values["mac_addresses"].index(mac)
+                # to then grab the corresponding iface
+                # additionally, ifaces are all a list of one element
+                ipv4 = values["ipv4_addresses"][idx][0]
+                vars["ansible_host"] = ipv4
+                host = values["name"]
+            case HostType.CT:
+                if not cfg.dns_only:
+                    ni = next(
+                        filter(
+                            lambda x: x["bridge"] == cfg.bridge_iface,
+                            values["network_interface"],
+                        )
+                    )
+                    iface = ni["name"]
+                    ipv4 = values["ipv4"][iface]
+                    vars["ansible_host"] = ipv4
+                # there will always be one element in "initialization"
+                # even if it was not specified Proxmox will use a generated hostname
+                host = values["initialization"][0]["hostname"]
+
+        if cfg.domain:
+            host = f"{host}.{cfg.domain}"
         groups = values["tags"]
         node_name = values["node_name"]
-
-        self._add(inventory, host, ipv4, groups, node_name, cfg, ct["type"])
-
-    def _handle_vm(self, inventory, vm, cfg: Config):
-        values = vm["values"]
-        # using the devices on the LAN side of the virtual router
-        ni = next(
-            filter(
-                lambda x: x["bridge"] == cfg.bridge_iface,
-                values["network_device"],
-            )
-        )
-        mac = ni["mac_address"]
-        # grab the first appearance of the mac address in the full list
-        idx = values["mac_addresses"].index(mac)
-        # to then grab the corresponding iface
-        # additionally, ifaces are all a list of one element
-        ipv4 = values["ipv4_addresses"][idx][0]
-
-        host = vm["name"]
-        groups = values["tags"]
-        node_name = values["node_name"]
-
-        self._add(inventory, host, ipv4, groups, node_name, cfg, vm["type"])
+        self._add(inventory, host, groups, vars, node_name, cfg, resource["type"])
 
     def _add(
         self,
         inventory,
-        host,
-        ipv4,
-        groups,
-        node_name,
+        host: str,
+        groups: list[str],
+        vars: dict[str, str | int | bool],
+        node_name: str,
         cfg: Config,
         host_type: str | HostType,
     ):
@@ -178,6 +190,9 @@ class InventoryModule(BaseInventoryPlugin):
             case HostType.CT:
                 groups.append("containers")
 
+        vars["virtual_machine"] = True if host_type == HostType.VM else False
+        vars["container"] = True if host_type == HostType.CT else False
+
         if cfg.use_node_groups:
             group_name = f"on_{node_name}"
             self._add_group(inventory, group_name, cfg)
@@ -185,7 +200,7 @@ class InventoryModule(BaseInventoryPlugin):
 
         for group in groups:
             self._add_group(inventory, group, cfg)
-        self._add_host(inventory, host, groups, ipv4, cfg, host_type)
+        self._add_host(inventory, host, groups, vars, cfg)
 
     def _add_group(self, inventory, group, cfg: Config):
         if group in cfg.exclude_groups:
@@ -197,7 +212,12 @@ class InventoryModule(BaseInventoryPlugin):
             inventory.set_variable(group, var, val)
 
     def _add_host(
-        self, inventory, host, groups, ipv4, cfg: Config, host_type: str | HostType
+        self,
+        inventory,
+        host: str,
+        groups: list[str],
+        vars: dict[str, str | int | bool],
+        cfg: Config,
     ):
         if host in cfg.exclude_hosts:
             return
@@ -211,12 +231,11 @@ class InventoryModule(BaseInventoryPlugin):
         self.known_hosts.add(host)
 
         inventory.add_host(host)
+
         for group in groups:
             if group not in cfg.exclude_groups:
                 inventory.add_child(group, host)
-        inventory.set_variable(host, "ansible_host", ipv4)
-        inventory.set_variable(host, "virtual_machine", host_type == HostType.VM)
-        inventory.set_variable(host, "container", host_type == HostType.CT)
 
-        for var, val in cfg.host_overrides.get(host, dict()).items():
+        vars.update(cfg.host_overrides.get(host, dict()))
+        for var, val in vars.items():
             inventory.set_variable(host, var, val)
