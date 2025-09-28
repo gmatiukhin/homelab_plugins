@@ -2,5 +2,5 @@ from enum import StrEnum
 
 
 class HostType(StrEnum):
-    VM = "proxmox_virtual_environment_vm"
-    CT = "proxmox_virtual_environment_container"
+    QEMU = "proxmox_virtual_environment_vm"
+    LXC = "proxmox_virtual_environment_container"

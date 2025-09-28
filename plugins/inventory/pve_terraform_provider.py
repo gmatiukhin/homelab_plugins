@@ -50,7 +50,7 @@ options:
   use_node_groups:
     description:
       - Whether to use PVE nodes as groups.
-      - Will create a group for each PVE host in a format C(on_<node-name>).
+      - Will create a group for each PVE host in a format C(proxmox_<node-name>).
     type: bool
     default: true
   group_overrides:
@@ -127,7 +127,7 @@ class InventoryModule(BaseInventoryPlugin):
             )
 
             for resource in resources:
-                if resource["type"] in [HostType.CT, HostType.VM]:
+                if resource["type"] in [HostType.LXC, HostType.QEMU]:
                     self._handle_resource(inventory, resource, cfg)
 
     def _handle_resource(self, inventory, resource, cfg: Config):
@@ -135,7 +135,7 @@ class InventoryModule(BaseInventoryPlugin):
         vars = dict()
 
         match resource["type"]:
-            case HostType.VM:
+            case HostType.QEMU:
                 # using the devices on the LAN side of the virtual router
                 ni = next(
                     filter(
@@ -151,7 +151,7 @@ class InventoryModule(BaseInventoryPlugin):
                 ipv4 = values["ipv4_addresses"][idx][0]
                 vars["ansible_host"] = ipv4
                 host = values["name"]
-            case HostType.CT:
+            case HostType.LXC:
                 if not cfg.dns_only:
                     ni = next(
                         filter(
@@ -168,7 +168,7 @@ class InventoryModule(BaseInventoryPlugin):
 
         if cfg.domain:
             host = f"{host}.{cfg.domain}"
-        groups = values["tags"]
+        groups = list(map(lambda x: f"tag_{x}", values["tags"]))
         node_name = values["node_name"]
         self._add(inventory, host, groups, vars, node_name, cfg, resource["type"])
 
@@ -185,16 +185,15 @@ class InventoryModule(BaseInventoryPlugin):
         groups = groups + cfg.extra_groups
 
         match host_type:
-            case HostType.VM:
-                groups.append("virtual_machines")
-            case HostType.CT:
-                groups.append("containers")
-
-        vars["virtual_machine"] = True if host_type == HostType.VM else False
-        vars["container"] = True if host_type == HostType.CT else False
+            case HostType.QEMU:
+                groups.append("proxmox_qemu")
+                vars["type"] = "qemu"
+            case HostType.LXC:
+                groups.append("proxmox_lxc")
+                vars["type"] = "lxc"
 
         if cfg.use_node_groups:
-            group_name = f"on_{node_name}"
+            group_name = f"proxmox_{node_name}"
             self._add_group(inventory, group_name, cfg)
             groups += [group_name]
 
