@@ -166,6 +166,7 @@ class InventoryModule(BaseInventoryPlugin):
                 # even if it was not specified Proxmox will use a generated hostname
                 host = values["initialization"][0]["hostname"]
 
+        vars["proxmox_vmid"] = int(values["id"])
         if cfg.domain:
             host = f"{host}.{cfg.domain}"
         groups = list(map(lambda x: f"tag_{x}", values["tags"]))
