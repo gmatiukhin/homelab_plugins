@@ -145,7 +145,9 @@ class InventoryModule(BaseInventoryPlugin):
                 )
                 mac = ni["mac_address"]
                 # grab the first appearance of the mac address in the full list
-                idx = values["mac_addresses"].index(mac)
+                idx = list(
+                    map(lambda s: str(s).lower(), values["mac_addresses"])
+                ).index(str(mac).lower())
                 # to then grab the corresponding iface
                 # additionally, ifaces are all a list of one element
                 ipv4 = values["ipv4_addresses"][idx][0]
